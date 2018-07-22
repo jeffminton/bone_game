@@ -1,0 +1,6 @@
+{
+    "terminal.integrated.env.linux": {
+        "PATH": "/home/ffej/.platformio/penv/bin:/home/ffej/.platformio/penv:/home/ffej/.rvm/gems/ruby-2.2.1/bin:/home/ffej/.rvm/gems/ruby-2.2.1@global/bin:/home/ffej/.rvm/rubies/ruby-2.2.1/bin:/usr/games:/home/ffej/bin:/usr/local/heroku/bin:/home/ffej/golang/packages/bin:/home/ffej/golang/go/bin:/usr/bin:/home/ffej/bin:/usr/games:/home/ffej/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/lib/jvm/java-8-oracle/bin:/usr/lib/jvm/java-8-oracle/db/bin:/usr/lib/jvm/java-8-oracle/jre/bin:/home/ffej/.rvm/bin:/usr/lib/jvm/java-8-oracle/bin:/usr/lib/jvm/java-8-oracle/db/bin:/usr/lib/jvm/java-8-oracle/jre/bin:/home/ffej/.local/bin:/home/ffej/.rvm/bin:/home/ffej/Build/perf-tools/bin:/home/ffej/.rvm/bin",
+        "PLATFORMIO_CALLER": "vscode"
+    }
+}
