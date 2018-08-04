@@ -3,11 +3,17 @@
 #include <LEDMatrixDriver.hpp>
 #include <Keyboard.h>
 // #include <Bounce2.h>
+#include <Wire.h>
 
-#define PI_SERIAL Serial1
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
 
-#define ROW_1 5
-#define ROW_2 6
+#define PIN 4
+
+#define ROW_1 7
+#define ROW_2 8
 #define ROW_3 9
 #define ROW_4 10
 #define ROW_5 11
@@ -21,7 +27,7 @@
 #define COL_7 19
 #define COL_8 20
 
-#define RESTART_PIN 4
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(60, PIN, NEO_GRB + NEO_KHZ800);
 
 // This sketch will 'flood fill' your LED matrix using the hardware SPI driver Library by Bartosz Bielawski.
 // Example written 16.06.2017 by Marko Oette, www.oette.info
@@ -55,8 +61,11 @@ int x1 = 0, y1 = 0, x2 = 0, y2 = 0; // start top left
 bool s = true;    // start with led on
 bool first_choice_set = false;
 bool second_choice_set = false;
+bool first_choice_sent = false;
+bool second_choice_sent = false;
 char first_choice = '\0';
 char second_choice = '\0';
+bool update_leds = false;
 
 // Bounce debouncer = Bounce(); 
 
@@ -76,13 +85,13 @@ bool debounce(int pin, int desired_state, int button_hold_time) {
 }
 
 
-void send_key(char key) {
-    PI_SERIAL.println(key);
-    Serial.println(key);
-    // Keyboard.begin();
-    // Keyboard.print(first_choice);
-    // Keyboard.end();
-}
+// void send_key(char key) {
+//     PI_SERIAL.println(key);
+//     Serial.println(key);
+//     // Keyboard.begin();
+//     // Keyboard.print(first_choice);
+//     // Keyboard.end();
+// }
 
 
 void light_up_button(char key, int round) {
@@ -120,24 +129,91 @@ void clearButtonLeds() {
 }
 
 
+void send_choices() {
+    Serial.println("Choices Requested");
+    if( first_choice_set == true && first_choice_sent == false ) {
+        Serial.print("Sent first choice: ");
+        Serial.println(first_choice);
+        Wire.write(first_choice);
+        first_choice_sent = true;
+    } else if( second_choice_set == true && first_choice_sent == true && second_choice_sent == false ) {
+        Serial.print("Sent second choice: ");
+        Serial.println(second_choice);
+        Wire.write(second_choice);
+        second_choice_sent = true;
+    } else if( first_choice_sent == true && second_choice_sent == true ) {
+        Serial.println("Reset Choices");
+        first_choice_sent = false;
+        second_choice_sent = false;
+        first_choice_set = false;
+        second_choice_set = false;
+        Wire.write('\0');
+    }
+}
+
+
+void set_pixel(int howMany) {
+    int led_num, red, green, blue;
+    Serial.print("Set pixel how many: ");
+    Serial.print(howMany);
+    Serial.print(" Available: ");
+    Serial.println(Wire.available());
+    // while(Wire.available() > 0){
+    //     Serial.print("Read: ");
+    //     Serial.println( Wire.read() );
+    // }
+    // while( Wire.available()) {
+    //Read first 2 bytes off
+    Wire.read();
+    Wire.read();
+    led_num = Wire.read();
+    // Serial.print("led_num: ");
+    // Serial.println(led_num);
+    // Serial.print(" Available: ");
+    // Serial.println(Wire.available());
+    red = Wire.read();
+    // Serial.print("red: ");
+    // Serial.println(red);
+    // Serial.print(" Available: ");
+    // Serial.println(Wire.available());
+    green = Wire.read();
+    // Serial.print("green: ");
+    // Serial.println(green);
+    // Serial.print(" Available: ");
+    // Serial.println(Wire.available());
+    blue = Wire.read();
+    // Serial.print("blue: ");
+    // Serial.println(blue);
+    // Serial.print(" Available: ");
+    // Serial.println(Wire.available());
+    strip.setPixelColor(led_num, strip.Color(red, green, blue));
+    update_leds = true;
+    // }
+    // strip.show();
+}
+
+
 void setup()
 {
-    // put your setup code here, to run once:
-    Serial.begin(9600);
-    PI_SERIAL.begin(9600);
-    // init the display
+    strip.begin();
+    strip.show(); // Initialize all pixels to 'off'
+    Wire.begin(8);
+    Wire.onReceive(set_pixel);
+    Wire.onRequest(send_choices);
+    Serial.begin(115200);
     lmd.setEnabled(true);
     lmd.setIntensity(0xF); // 0 = low, 10 = high
     clearButtonLeds();
-    pinMode(RESTART_PIN, INPUT);
-
-    // debouncer.attach(RESTART_PIN);
-    // debouncer.interval(5); // interval in ms
 }
 
 
 void loop()
 {
+    if(update_leds == true) {
+        strip.show();
+        update_leds = false;
+    }
+    
     if( first_choice_set == false || second_choice_set == false) {
         
         char key = keypad.getKey();
@@ -150,22 +226,15 @@ void loop()
                 first_choice = key;
                 first_choice_set = true;
                 light_up_button(key, 1);
-                send_key(first_choice);
+                // send_key(first_choice);
             } else if( isUpperCase(key) && first_choice_set == true && second_choice_set == false ) {
                 Serial.println("second choice");
                 second_choice = key;
                 second_choice_set = true;
                 light_up_button(key, 2);
-                send_key(second_choice);
+                // send_key(second_choice);
             }
             Serial.println(key);
-        }
-    } else {
-        if( debounce(RESTART_PIN, HIGH, 1000 ) ){
-            Serial.println("Reset Button Pressed");
-            first_choice_set = false;
-            second_choice_set = false;
-            clearButtonLeds();
         }
     }
 }
