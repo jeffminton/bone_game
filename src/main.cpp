@@ -348,6 +348,13 @@ void loop()
                 Serial.print(first_choice);
                 Serial.println(", Waiting For Second Choice");
             }
+            else if (first_choice_set == true && second_choice_set == true)
+            {
+                Serial.print("First Choice: ");
+                Serial.print(first_choice);
+                Serial.print(", Second Choice: ");
+                Serial.println(second_choice);
+            }
         }
 
         // char key = keypad.getKey();
