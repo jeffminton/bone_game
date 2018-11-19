@@ -50,6 +50,7 @@ char keys[rows][cols] = {
     {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'},
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
+
 bool lights[rows][cols] = {
     {false, false, false, false, false, false, false, false},
     {false, false, false, false, false, false, false, false},
@@ -57,12 +58,12 @@ bool lights[rows][cols] = {
     {false, false, false, false, false, false, false, false},
     {false, false, false, false, false, false, false, false},
     {false, false, false, false, false, false, false, false}};
+
 byte rowPins[rows] = {ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6};               //connect to the row pinouts of the keypad
 byte colPins[cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, rows, cols);
 
 int x1 = 0, y1 = 0, x2 = 0, y2 = 0; // start top left
-bool s = true;                      // start with led on
 bool first_choice_set = false;
 bool second_choice_set = false;
 bool first_choice_sent = false;
@@ -74,6 +75,7 @@ bool button_test = false;
 unsigned long last_heartbeat = 0, heartbeat_interval = 2000;
 bool heartbeat_on = false;
 bool keys_in = false;
+bool send_heartbeat = false;
 
 enum commands
 {
@@ -85,7 +87,8 @@ enum commands
     led_test,
     set_button_test_on,
     set_button_test_off,
-    reset_teensy
+    reset_teensy,
+    heartbeat
 };
 
 void (*resetFunc)(void) = 0; //declare reset function @ address 0
@@ -126,18 +129,20 @@ void light_up_button(char key, int round)
             if (keys[row][col] == key)
             {
                 lights[row][col] = true;
-                lmd.setPixel(col, row, s);
-                if (round == 1)
-                {
-                    x1 = col;
-                    y1 = row;
-                }
-                if (round == 2)
-                {
-                    x2 = col;
-                    y2 = row;
-                }
-                break;
+                // if (round == 1)
+                // {
+                //     x1 = col;
+                //     y1 = row;
+                // }
+                // if (round == 2)
+                // {
+                //     x2 = col;
+                //     y2 = row;
+                // }
+                // break;
+            }
+            if (lights[row][col] == true){
+                lmd.setPixel(col, row, true);
             }
         }
     }
@@ -153,6 +158,13 @@ void light_up_button(char key, int round)
 void clear_button_leds()
 {
     Serial.println("clear_button_leds");
+    for (int col = 0; col < cols; col++)
+    {
+        for (int row = 0; row < rows; row++)
+        {
+            lights[row][col] = false;
+        }
+    }
     lmd.clear();
     lmd.display();
 }
@@ -187,6 +199,7 @@ void send_choices()
                 }
             }
         }
+        Wire.write('0');
     }
     else if (first_choice_set == true && first_choice_sent == false)
     {
@@ -201,6 +214,12 @@ void send_choices()
         Serial.println(second_choice);
         Wire.write(second_choice);
         second_choice_sent = true;
+    }
+    else if (send_heartbeat == true)
+    {
+        Serial.print("Send heartbeat: ");
+        Wire.write('1');
+        send_heartbeat = false;
     }
 }
 
@@ -285,6 +304,9 @@ void read_command(int howMany)
     case reset_teensy:
         resetFunc(); //call reset
         break;
+    case heartbeat:
+        send_heartbeat = true;
+        break;
     }
 
     // }
@@ -338,6 +360,9 @@ void loop()
     {
         if (heartbeat_on)
         {
+            Serial.print("Time: ");
+            Serial.print(last_heartbeat);
+            Serial.print(", MSG: ");
             if (first_choice_set == false)
             {
                 Serial.println("Waiting For First Choice");
