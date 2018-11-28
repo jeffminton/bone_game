@@ -85,8 +85,8 @@ enum commands
     set_multiple_leds,
     reset_game,
     led_test,
-    set_button_test_on,
-    set_button_test_off,
+    button_test_on,
+    button_test_off,
     reset_teensy,
     heartbeat
 };
@@ -129,19 +129,9 @@ void light_up_button(char key, int round)
             if (keys[row][col] == key)
             {
                 lights[row][col] = true;
-                // if (round == 1)
-                // {
-                //     x1 = col;
-                //     y1 = row;
-                // }
-                // if (round == 2)
-                // {
-                //     x2 = col;
-                //     y2 = row;
-                // }
-                // break;
             }
-            if (lights[row][col] == true){
+            if (lights[row][col] == true)
+            {
                 lmd.setPixel(col, row, true);
             }
         }
@@ -295,10 +285,10 @@ void read_command(int howMany)
         Serial.println("led_test");
         light_all_pixels();
         break;
-    case set_button_test_on:
+    case button_test_on:
         button_test = true;
         break;
-    case set_button_test_off:
+    case button_test_off:
         button_test = false;
         break;
     case reset_teensy:
@@ -347,13 +337,29 @@ void loop()
     if (button_test == true)
     {
         Serial.println("button_test");
-        char key = keypad.getKey();
+        keys_in = keypad.getKeys();
+        // interrupts();
 
-        if (key != NO_KEY)
+        if (keys_in)
         {
-            light_up_button(key, 1);
-            // send_key(first_choice);
-            Serial.println(key);
+            for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+            {
+                if (keypad.key[i].stateChanged) // Only find keys that have changed state.
+                {
+                    if (keypad.key[i].kstate == PRESSED)
+                    {
+                        light_up_button(keypad.key[i].kchar, 1);
+                        // char key = keypad.getKey();
+
+                        // if (key != NO_KEY)
+                        // {
+                        //     light_up_button(key, 1);
+                        //     // send_key(first_choice);
+                        //     Serial.println(key);
+                        // }
+                    }
+                }
+            }
         }
     }
     else if (first_choice_set == false || second_choice_set == false)
@@ -387,14 +393,23 @@ void loop()
         keys_in = keypad.getKeys();
         // interrupts();
 
+        bool key_pressed = false;
+
         if (keys_in)
         {
+            String key_list = String("Keys Pressed: ");
             for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
             {
                 if (keypad.key[i].stateChanged) // Only find keys that have changed state.
                 {
                     if (keypad.key[i].kstate == PRESSED)
                     {
+                        key_pressed = true;
+                        key_list.concat("Key index: ");
+                        key_list.concat(i);
+                        key_list.concat(", Key char: ");
+                        key_list.concat(keypad.key[i].kchar);
+                        key_list.concat(String("; "));
                         if (isLowerCase(keypad.key[i].kchar) && first_choice_set == false)
                         {
                             Serial.println("first choice");
@@ -417,6 +432,10 @@ void loop()
                         }
                     }
                 }
+            }
+            if(key_pressed == true) {
+                Serial.println(key_list);
+                key_pressed = false;
             }
         }
 
