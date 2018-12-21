@@ -10,12 +10,12 @@
 
 #define LED_PIN 4
 
-#define ROW_1 7
-#define ROW_2 8
-#define ROW_3 9
-#define ROW_4 10
-#define ROW_5 21
-#define ROW_6 12
+#define PAD_1_ROW_1 7
+#define PAD_1_ROW_2 8
+#define PAD_1_ROW_3 9
+#define PAD_2_ROW_1 10
+#define PAD_2_ROW_2 11
+#define PAD_2_ROW_3 12
 #define COL_1 13
 #define COL_2 14
 #define COL_3 15
@@ -43,10 +43,24 @@ LEDMatrixDriver lmd(LEDMATRIX_SEGMENTS, LEDMATRIX_CS_PIN);
 
 const byte rows = 6; //four rows
 const byte cols = 8; //three columns
+const byte pad_1_rows = 3; //four rows
+const byte pad_1_cols = 8; //three columns
+const byte pad_2_rows = 3; //four rows
+const byte pad_2_cols = 8; //three columns
 char keys[rows][cols] = {
     {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
     {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
     {'q', 'r', 's', 't', 'u', 'v', 'w', 'x'},
+    {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'},
+    {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
+    {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
+
+char pad_1_keys[pad_1_rows][pad_1_cols] = {
+    {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
+    {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
+    {'q', 'r', 's', 't', 'u', 'v', 'w', 'x'}};
+
+char pad_2_keys[pad_2_rows][pad_2_cols] = {
     {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'},
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
@@ -59,9 +73,13 @@ bool lights[rows][cols] = {
     {false, false, false, false, false, false, false, false},
     {false, false, false, false, false, false, false, false}};
 
-byte rowPins[rows] = {ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6};               //connect to the row pinouts of the keypad
-byte colPins[cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, rows, cols);
+byte pad_1_rowPins[pad_1_rows] = {PAD_1_ROW_1, PAD_1_ROW_2, PAD_1_ROW_3};                  //connect to the row pinouts of the keypad
+byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
+Keypad pad_1_keypad = Keypad(makeKeymap(pad_1_keys), pad_1_rowPins, pad_1_colPins, pad_1_rows, pad_1_cols);
+
+byte pad_2_rowPins[pad_2_rows] = {PAD_2_ROW_1, PAD_2_ROW_2, PAD_2_ROW_3};                  //connect to the row pinouts of the keypad
+byte pad_2_colPins[pad_2_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
+Keypad pad_2_keypad = Keypad(makeKeymap(pad_2_keys), pad_2_rowPins, pad_2_colPins, pad_2_rows, pad_2_cols);
 
 int x1 = 0, y1 = 0, x2 = 0, y2 = 0; // start top left
 bool first_choice_set = false;
@@ -337,19 +355,19 @@ void loop()
     if (button_test == true)
     {
         Serial.println("button_test");
-        keys_in = keypad.getKeys();
+        keys_in = pad_1_keypad.getKeys();
         // interrupts();
 
         if (keys_in)
         {
             for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
             {
-                if (keypad.key[i].stateChanged) // Only find keys that have changed state.
+                if (pad_1_keypad.key[i].stateChanged) // Only find keys that have changed state.
                 {
-                    if (keypad.key[i].kstate == PRESSED)
+                    if (pad_1_keypad.key[i].kstate == PRESSED)
                     {
-                        light_up_button(keypad.key[i].kchar, 1);
-                        // char key = keypad.getKey();
+                        light_up_button(pad_1_keypad.key[i].kchar, 1);
+                        // char key = pad_1_keypad.getKey();
 
                         // if (key != NO_KEY)
                         // {
@@ -388,54 +406,94 @@ void loop()
             }
         }
 
-        // char key = keypad.getKey();
-        // noInterrupts();
-        keys_in = keypad.getKeys();
-        // interrupts();
-
-        bool key_pressed = false;
-
-        if (keys_in)
+        if (first_choice_set == false)
         {
-            String key_list = String("Keys Pressed: ");
-            for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+            // char key = pad_1_keypad.getKey();
+            // noInterrupts();
+            keys_in = pad_1_keypad.getKeys();
+            // interrupts();
+
+            bool key_pressed = false;
+
+            if (keys_in)
             {
-                if (keypad.key[i].stateChanged) // Only find keys that have changed state.
+                String key_list = String("Keys Pressed: ");
+                for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
                 {
-                    if (keypad.key[i].kstate == PRESSED)
+                    if (pad_1_keypad.key[i].stateChanged) // Only find keys that have changed state.
                     {
-                        key_pressed = true;
-                        key_list.concat("Key index: ");
-                        key_list.concat(i);
-                        key_list.concat(", Key char: ");
-                        key_list.concat(keypad.key[i].kchar);
-                        key_list.concat(String("; "));
-                        if (isLowerCase(keypad.key[i].kchar) && first_choice_set == false)
+                        if (pad_1_keypad.key[i].kstate == PRESSED)
                         {
-                            Serial.println("first choice");
-                            first_choice = keypad.key[i].kchar;
-                            first_choice_set = true;
-                            light_up_button(keypad.key[i].kchar, 1);
-                            // send_key(first_choice);
-                        }
-                        else if (isUpperCase(keypad.key[i].kchar) && first_choice_set == true && second_choice_set == false)
-                        {
-                            Serial.println("second choice");
-                            second_choice = keypad.key[i].kchar;
-                            second_choice_set = true;
-                            light_up_button(keypad.key[i].kchar, 2);
-                            // send_key(second_choice);
-                        }
-                        if (heartbeat_on)
-                        {
-                            Serial.println(keypad.key[i].kchar);
+                            key_pressed = true;
+                            key_list.concat("Key index: ");
+                            key_list.concat(i);
+                            key_list.concat(", Key char: ");
+                            key_list.concat(pad_1_keypad.key[i].kchar);
+                            key_list.concat(String("; "));
+                            if (isLowerCase(pad_1_keypad.key[i].kchar) && first_choice_set == false)
+                            {
+                                Serial.println("first choice");
+                                first_choice = pad_1_keypad.key[i].kchar;
+                                first_choice_set = true;
+                                light_up_button(pad_1_keypad.key[i].kchar, 1);
+                                // send_key(first_choice);
+                            }
+                            if (heartbeat_on)
+                            {
+                                Serial.println(pad_1_keypad.key[i].kchar);
+                            }
                         }
                     }
                 }
+                if (key_pressed == true)
+                {
+                    Serial.println(key_list);
+                    key_pressed = false;
+                }
             }
-            if(key_pressed == true) {
-                Serial.println(key_list);
-                key_pressed = false;
+        } else if (first_choice_set == true && second_choice_set == false) {
+            // char key = pad_2_keypad.getKey();
+            // noInterrupts();
+            keys_in = pad_2_keypad.getKeys();
+            // interrupts();
+
+            bool key_pressed = false;
+
+            if (keys_in)
+            {
+                String key_list = String("Keys Pressed: ");
+                for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+                {
+                    if (pad_2_keypad.key[i].stateChanged) // Only find keys that have changed state.
+                    {
+                        if (pad_2_keypad.key[i].kstate == PRESSED)
+                        {
+                            key_pressed = true;
+                            key_list.concat("Key index: ");
+                            key_list.concat(i);
+                            key_list.concat(", Key char: ");
+                            key_list.concat(pad_2_keypad.key[i].kchar);
+                            key_list.concat(String("; "));
+                            if (isUpperCase(pad_2_keypad.key[i].kchar) && first_choice_set == true && second_choice_set == false)
+                            {
+                                Serial.println("second choice");
+                                second_choice = pad_2_keypad.key[i].kchar;
+                                second_choice_set = true;
+                                light_up_button(pad_2_keypad.key[i].kchar, 2);
+                                // send_key(second_choice);
+                            }
+                            if (heartbeat_on)
+                            {
+                                Serial.println(pad_2_keypad.key[i].kchar);
+                            }
+                        }
+                    }
+                }
+                if (key_pressed == true)
+                {
+                    Serial.println(key_list);
+                    key_pressed = false;
+                }
             }
         }
 
