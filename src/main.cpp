@@ -2,6 +2,7 @@
 #include <Keypad.h>
 #include <LEDMatrixDriver.hpp>
 #include <Wire.h>
+#include <stdarg.h>
 
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
@@ -41,12 +42,12 @@ const int LEDMATRIX_SEGMENTS = 1;
 // The LEDMatrixDriver class instance
 LEDMatrixDriver lmd(LEDMATRIX_SEGMENTS, LEDMATRIX_CS_PIN);
 
-const byte rows = 6; //four rows
-const byte cols = 8; //three columns
-const byte pad_1_rows = 3; //four rows
-const byte pad_1_cols = 8; //three columns
-const byte pad_2_rows = 3; //four rows
-const byte pad_2_cols = 8; //three columns
+const int rows = 6; //6 rows
+const int cols = 8; //8 columns
+const byte pad_1_rows = 3; //3 rows
+const byte pad_1_cols = 8; //8 columns
+const byte pad_2_rows = 3; //3 rows
+const byte pad_2_cols = 8; //8 columns
 char keys[rows][cols] = {
     {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
     {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
@@ -73,6 +74,10 @@ bool lights[rows][cols] = {
     {false, false, false, false, false, false, false, false},
     {false, false, false, false, false, false, false, false}};
 
+char button_buffer[(rows * cols) + 2] = {'\0'};
+int button_insert_buffer_index = 0;
+int button_read_buffer_index = 0;
+
 byte pad_1_rowPins[pad_1_rows] = {PAD_1_ROW_1, PAD_1_ROW_2, PAD_1_ROW_3};                  //connect to the row pinouts of the keypad
 byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
 Keypad pad_1_keypad = Keypad(makeKeymap(pad_1_keys), pad_1_rowPins, pad_1_colPins, pad_1_rows, pad_1_cols);
@@ -94,6 +99,9 @@ unsigned long last_heartbeat = 0, heartbeat_interval = 2000;
 bool heartbeat_on = false;
 bool keys_in = false;
 bool send_heartbeat = false;
+bool send_log = false;
+
+String log_msg = String();
 
 enum commands
 {
@@ -106,10 +114,37 @@ enum commands
     button_test_on,
     button_test_off,
     reset_teensy,
-    heartbeat
+    heartbeat,
+    set_send_log
 };
 
 void (*resetFunc)(void) = 0; //declare reset function @ address 0
+
+
+// char* p(char *fmt, ... ){
+//         char buf[128]; // resulting string limited to 128 chars
+//         va_list args;
+//         va_start (args, fmt );
+//         vsnprintf(buf, 128, fmt, args);
+//         va_end (args);
+//         return buf;
+//         // Serial.print(buf);
+// }
+
+
+void heartbeat_log(String msg){
+    if (heartbeat_on)
+    {
+        // String log_msg = String("Keys Pressed: ");
+        log_msg.concat("Time: ");
+        log_msg.concat(last_heartbeat);
+        log_msg.concat(", MSG: ");
+        log_msg.concat(msg);
+        log_msg.concat("\n");
+        // Serial.println(log_msg);
+    }
+}
+
 
 bool debounce(int pin, int desired_state, int button_hold_time)
 {
@@ -129,37 +164,34 @@ bool debounce(int pin, int desired_state, int button_hold_time)
     return false;
 }
 
-// void send_key(char key) {
-//     PI_SERIAL.println(key);
-//     Serial.println(key);
-//     // Keyboard.begin();
-//     // Keyboard.print(first_choice);
-//     // Keyboard.end();
-// }
 
 void light_up_button(char key, int round)
 {
     lmd.clear();
+
+    String local_log_msg = String("light_up_button: ");
+    local_log_msg.concat(key);
+
+    heartbeat_log(local_log_msg);
     for (int col = 0; col < cols; col++)
     {
         for (int row = 0; row < rows; row++)
         {
             if (keys[row][col] == key)
             {
+                if(lights[row][col] == false){
+                    button_buffer[button_insert_buffer_index] = key;
+                    button_insert_buffer_index++;
+                }
                 lights[row][col] = true;
             }
             if (lights[row][col] == true)
             {
                 lmd.setPixel(col, row, true);
             }
+            
         }
     }
-
-    // if( round == 2 ) {
-    //     lmd.setPixel(x2, y2, s);
-    // }
-    // lmd.setPixel(x1, y1, s);
-    // Flush framebuffer
     lmd.display();
 }
 
@@ -180,9 +212,13 @@ void clear_button_leds()
 void light_all_button_leds()
 {
     Serial.println("light_all_button_leds");
-    for (int i = 0; i <= cols; i++)
+    lmd.clear();
+    for (int col = 0; col < cols; col++)
     {
-        lmd.setColumn(i, true);
+        for (int row = 0; row < 1; row++)
+        {
+            lmd.setPixel(col, row, true);
+        }
     }
     lmd.display();
 }
@@ -195,19 +231,38 @@ void send_choices()
         Serial.println("Choices Requested");
     }
 
-    if (button_test == true)
+    if (send_heartbeat == true)
     {
-        for (int col = 0; col < cols; col++)
-        {
-            for (int row = 0; row < rows; row++)
-            {
-                if (lights[row][col] == true)
-                {
-                    Wire.write(keys[row][col]);
-                }
-            }
+        Serial.print("Send heartbeat: ");
+        Wire.write('1');
+        send_heartbeat = false;
+    }
+    else if (send_log == true)
+    {
+        Wire.write(log_msg.c_str());
+        log_msg.remove(0);
+        send_log = false;
+    }
+    else if (button_test == true)
+    {
+        // for (int col = 0; col < cols; col++)
+        // {
+        //     for (int row = 0; row < rows; row++)
+        //     {
+        //         if (lights[row][col] == true)
+        //         {
+        //             Wire.write(keys[row][col]);
+        //         }
+        //     }
+        // }
+        char button_out = button_buffer[button_read_buffer_index];
+
+        Wire.write(button_out);
+
+        if(button_out != '\0'){
+            button_read_buffer_index++;
         }
-        Wire.write('0');
+        
     }
     else if (first_choice_set == true && first_choice_sent == false)
     {
@@ -222,12 +277,6 @@ void send_choices()
         Serial.println(second_choice);
         Wire.write(second_choice);
         second_choice_sent = true;
-    }
-    else if (send_heartbeat == true)
-    {
-        Serial.print("Send heartbeat: ");
-        Wire.write('1');
-        send_heartbeat = false;
     }
 }
 
@@ -301,6 +350,7 @@ void read_command(int howMany)
         break;
     case led_test:
         Serial.println("led_test");
+        light_all_button_leds();
         light_all_pixels();
         break;
     case button_test_on:
@@ -313,13 +363,18 @@ void read_command(int howMany)
         resetFunc(); //call reset
         break;
     case heartbeat:
+        heartbeat_log("heartbeat requested");
         send_heartbeat = true;
+        break;
+    case set_send_log:
+        send_log = true;
         break;
     }
 
     // }
     // strip.show();
 }
+
 
 void setup()
 {
@@ -354,7 +409,7 @@ void loop()
 
     if (button_test == true)
     {
-        Serial.println("button_test");
+        heartbeat_log("Get Pad 1 Keys");
         keys_in = pad_1_keypad.getKeys();
         // interrupts();
 
@@ -367,14 +422,24 @@ void loop()
                     if (pad_1_keypad.key[i].kstate == PRESSED)
                     {
                         light_up_button(pad_1_keypad.key[i].kchar, 1);
-                        // char key = pad_1_keypad.getKey();
+                    }
+                }
+            }
+        }
 
-                        // if (key != NO_KEY)
-                        // {
-                        //     light_up_button(key, 1);
-                        //     // send_key(first_choice);
-                        //     Serial.println(key);
-                        // }
+        heartbeat_log("Get Pad 2 Keys");
+        keys_in = pad_2_keypad.getKeys();
+        // interrupts();
+
+        if (keys_in)
+        {
+            for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+            {
+                if (pad_2_keypad.key[i].stateChanged) // Only find keys that have changed state.
+                {
+                    if (pad_2_keypad.key[i].kstate == PRESSED)
+                    {
+                        light_up_button(pad_2_keypad.key[i].kchar, 1);
                     }
                 }
             }
