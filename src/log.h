@@ -56,12 +56,15 @@ public:
 
     void print_log_pre(bool force, bool heartbeat);
     void print_log(char* msg, bool force, bool heartbeat);
+    void print_log(const char* msg, bool force, bool heartbeat);
     void print_log(int msg, bool force, bool heartbeat);
     void print_log(byte msg, bool force, bool heartbeat);
+    void heartbeat_log(const char* log_msg, bool force);
     void heartbeat_log(char* log_msg, bool force);
     void heartbeat_log(int log_msg, bool force) ;
     void heartbeat_log(byte log_msg, bool force);
     void heartbeat_log(char log_msg, bool force);
+    void heartbeat_log(const char* msg);
     void heartbeat_log(char* msg);
     void heartbeat_log(char msg);
     void heartbeat_log(int msg);
@@ -69,10 +72,12 @@ public:
 
 
     void print_lcd_pre();
+    void print_lcd(const char*& msg, bool new_line);
     void print_lcd(char* msg, bool new_line);
     void print_lcd(char msg, bool new_line);
     void print_lcd(int msg, bool new_line);
     void print_lcd(byte msg, bool new_line);
+    void lcd_log(const char*& log_msg, bool new_line = true);
     void lcd_log(char* log_msg, bool new_line = true);
     void lcd_log(int log_msg, bool new_line = true);
     void lcd_log(byte log_msg, bool new_line = true);

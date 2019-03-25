@@ -56,6 +56,11 @@ void Log::print_log(char* msg, bool force, bool heartbeat){
     Serial.println(msg);
 }
 
+void Log::print_log(const char* msg, bool force, bool heartbeat){
+    print_log_pre(force, heartbeat);
+    Serial.println(msg);
+}
+
 void Log::print_log(int msg, bool force, bool heartbeat){
     print_log_pre(force, heartbeat);
     Serial.println(msg);
@@ -101,6 +106,18 @@ void Log::heartbeat_log(char* log_msg, bool force) {
 }
 
 
+void Log::heartbeat_log(const char* log_msg, bool force) {
+        // Serial.println('millis: %s, on at: %s, off at: %s' % (str(millis()), str(heartbeat_on_at), str(heartbeat_off_at)))
+        if(force == true){
+            print_log(log_msg, force, false);
+        }
+        check_heartbeat();
+        if(heartbeat_on == true) {
+            // print_log(log_msg, false, true);
+        }
+}
+
+
 void Log::heartbeat_log(int log_msg, bool force) {
         // Serial.println('millis: %s, on at: %s, off at: %s' % (str(millis()), str(heartbeat_on_at), str(heartbeat_off_at)))
         if(force == true){
@@ -133,6 +150,10 @@ void Log::heartbeat_log(char* msg){
     heartbeat_log(msg, false);
 }
 
+void Log::heartbeat_log(const char* msg){
+    heartbeat_log(msg, false);
+}
+
 void Log::heartbeat_log(char msg){
     heartbeat_log(&msg, false);
 }
@@ -160,6 +181,13 @@ void Log::print_lcd_pre() {
     message_num++;
 }
 
+void Log::print_lcd(const char*& msg, bool new_line){
+    if(new_line == true) {
+        print_lcd_pre();
+    }
+    lcd.print(msg);
+    current_row++;
+}
 
 void Log::print_lcd(char* msg, bool new_line){
     if(new_line == true) {
@@ -193,6 +221,9 @@ void Log::print_lcd(byte msg, bool new_line){
     current_row++;
 }
 
+void Log::lcd_log(const char*& log_msg, bool new_line) {
+    print_lcd(log_msg, new_line);
+}
 
 void Log::lcd_log(char* log_msg, bool new_line) {
     print_lcd(log_msg, new_line);
