@@ -1,9 +1,11 @@
 #ifndef LOG_H
 #define LOG_H
+#define LCD
 
 #include <Arduino.h>
+#ifdef LCD
 #include "Adafruit_LiquidCrystal.h"
-
+#endif
 
 #ifdef __arm__
 // should use uinstd.h to define sbrk but Due causes a conflict
@@ -24,7 +26,9 @@ private:
     int heartbeat_durration;
     unsigned long heartbeat_on_at;
     unsigned long heartbeat_off_at;
+    #ifdef LCD
     Adafruit_LiquidCrystal lcd;
+    #endif
     int current_row;
     int max_row;
     int message_num;
@@ -35,8 +39,14 @@ public:
     // {
     //     setDate(year, month, day);
     // }
+    // Default Contructor
+    Log();
 
+    #ifdef LCD
     Log(Adafruit_LiquidCrystal lcd);
+    #else
+    Log(void* lcd_void);
+    #endif
 
     // void setDate(int year, int month, int day)
     // {

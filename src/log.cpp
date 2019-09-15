@@ -1,9 +1,10 @@
 #include "log.h"
 
 
+// Default Constructor
+Log::Log() {}
 
-
-
+#ifdef LCD
 Log::Log(Adafruit_LiquidCrystal lcd_ref) : lcd(lcd_ref) {
     heartbeat_interval = 1000;
     heartbeat_on = false;
@@ -21,6 +22,20 @@ Log::Log(Adafruit_LiquidCrystal lcd_ref) : lcd(lcd_ref) {
 
     message_num = 0;
 }
+#else
+Log::Log(void* lcd_void){
+    heartbeat_interval = 1000;
+    heartbeat_on = false;
+    heartbeat_durration = 10;
+    heartbeat_on_at = 0;
+    heartbeat_off_at = 0;
+
+    current_row = 0;
+    max_row = 3;
+
+    message_num = 0;
+}
+#endif
 
 
 int Log::freeMemory()
@@ -173,11 +188,13 @@ void Log::print_lcd_pre() {
     if( current_row > max_row ) {
         current_row = 0;
     }
+    #ifdef LCD
     lcd.setCursor(0, current_row);
     lcd.print("                    ");
     lcd.setCursor(0, current_row);
     lcd.print(message_num);
     lcd.print(":");
+    #endif
     message_num++;
 }
 
@@ -185,7 +202,9 @@ void Log::print_lcd(const char*& msg, bool new_line){
     if(new_line == true) {
         print_lcd_pre();
     }
+    #ifdef LCD
     lcd.print(msg);
+    #endif
     current_row++;
 }
 
@@ -193,7 +212,9 @@ void Log::print_lcd(char* msg, bool new_line){
     if(new_line == true) {
         print_lcd_pre();
     }
+    #ifdef LCD
     lcd.print(msg);
+    #endif
     current_row++;
 }
 
@@ -201,7 +222,9 @@ void Log::print_lcd(char msg, bool new_line){
     if(new_line == true) {
         print_lcd_pre();
     }
+    #ifdef LCD
     lcd.print(msg);
+    #endif
     current_row++;
 }
 
@@ -209,7 +232,9 @@ void Log::print_lcd(int msg, bool new_line){
     if(new_line == true) {
         print_lcd_pre();
     }
+    #ifdef LCD
     lcd.print(msg);
+    #endif
     current_row++;
 }
 
@@ -217,7 +242,9 @@ void Log::print_lcd(byte msg, bool new_line){
     if(new_line == true) {
         print_lcd_pre();
     }
+    #ifdef LCD
     lcd.print(msg);
+    #endif
     current_row++;
 }
 

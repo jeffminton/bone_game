@@ -1,15 +1,18 @@
 #include <Arduino.h>
 #include <Keypad.h>
 #include <LEDMatrixDriver.hpp>
-#include <Wire.h>
 #include <stdarg.h>
 
+#include "i2c.h"
 #include "log.h"
 
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
 #include <avr/power.h>
 #endif
+
+// #include <Wire.h>
+
 
 #define LED_PIN 4
 
@@ -29,25 +32,14 @@
 #define COL_8 20
 
 
-#define LCD_CLK 21
-const uint8_t lcd_clock_pin = 21;
-#define LCD_DAT 23
-const uint8_t lcd_data_pin = 23;
-#define LCD_LAT 24
-const uint8_t lcd_latch_pin = 24;
-
-Adafruit_LiquidCrystal lcd(lcd_data_pin, lcd_clock_pin, lcd_latch_pin);
-
+// Constants
 const int LED_COUNT = 48;
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+const uint8_t LCD_CLOCK_PIN = 21;
+const uint8_t LCD_DATA_PIN = 23;
+const uint8_t LCD_LATCH_PIN = 24;
 
-// Log out_log(lcd_data, lcd_clock, lcd_latch);
-
-Log out_log(lcd);
-
-// Define the ChipSelect pin for the led matrix (Dont use the SS or MISO pin of your Arduino!)
-// Other pins are arduino specific SPI pins (MOSI=DIN of the LEDMatrix and CLK) see https://www.arduino.cc/en/Reference/SPI
+// LED Matrix chip select pin
 const uint8_t LEDMATRIX_CS_PIN = 0;
 
 // Define LED Matrix dimensions (0-n) - eg: 32x8 = 31x7
@@ -55,15 +47,15 @@ const int LEDMATRIX_WIDTH = 8;
 const int LEDMATRIX_HEIGHT = 6;
 const int LEDMATRIX_SEGMENTS = 1;
 
-// The LEDMatrixDriver class instance
-LEDMatrixDriver lmd(LEDMATRIX_SEGMENTS, LEDMATRIX_CS_PIN);
-
+// Define keypad constants
 const int rows = 6; //6 rows
 const int cols = 8; //8 columns
 const byte pad_1_rows = 3; //3 rows
 const byte pad_1_cols = 8; //8 columns
 const byte pad_2_rows = 3; //3 rows
 const byte pad_2_cols = 8; //8 columns
+
+// Define keypad keys
 char keys[rows][cols] = {
     {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
     {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
@@ -72,6 +64,7 @@ char keys[rows][cols] = {
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
 
+// Define keypad 1 keys
 char pad_1_keys[pad_1_rows][pad_1_cols] = {
     {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
     {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
@@ -82,53 +75,21 @@ char pad_1_keys[pad_1_rows][pad_1_cols] = {
 //     {9, 10, 11, 12, 13, 14, 15, 16},
 //     {17, 18, 19, 20, 21, 22, 23, 24}};
 
+// Define keypad 2 keys
 char pad_2_keys[pad_2_rows][pad_2_cols] = {
     {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'},
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
 
-bool lights[rows][cols] = {
-    {false, false, false, false, false, false, false, false},
-    {false, false, false, false, false, false, false, false},
-    {false, false, false, false, false, false, false, false},
-    {false, false, false, false, false, false, false, false},
-    {false, false, false, false, false, false, false, false},
-    {false, false, false, false, false, false, false, false}};
-
-
+// Define keypad 1 pins
 byte pad_1_rowPins[pad_1_rows] = {PAD_1_ROW_1, PAD_1_ROW_2, PAD_1_ROW_3};                  //connect to the row pinouts of the keypad
 byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
-Keypad pad_1_keypad = Keypad(makeKeymap(pad_1_keys), pad_1_rowPins, pad_1_colPins, pad_1_rows, pad_1_cols);
 
+// Define keypad 2 pins
 byte pad_2_rowPins[pad_2_rows] = {PAD_2_ROW_1, PAD_2_ROW_2, PAD_2_ROW_3};                  //connect to the row pinouts of the keypad
 byte pad_2_colPins[pad_2_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
-Keypad pad_2_keypad = Keypad(makeKeymap(pad_2_keys), pad_2_rowPins, pad_2_colPins, pad_2_rows, pad_2_cols);
 
-// int x1 = 0, y1 = 0, x2 = 0, y2 = 0; // start top left
-bool first_choice_set = false;
-bool second_choice_set = false;
-bool first_choice_sent = false;
-bool second_choice_sent = false;
-bool test_choice_set = false;
-bool test_choice_sent = false;
-char first_choice = '0';
-char second_choice = '0';
-char test_choice = '0';
-
-bool update_leds = false;
-bool button_test = false;
-// unsigned long last_heartbeat = 0;
-
-
-
-bool keys_in = false;
-bool send_heartbeat = false;
-// bool send_log = false;
-
-// String print_log_msg;
-// const int msg_send_buffer_length = 32;
-// byte msg_send_buffer[msg_send_buffer_length] = {'0'};
-
+// Command ENUM
 enum commands
 {
     set_led,
@@ -144,7 +105,7 @@ enum commands
     set_send_log
 };
 
-
+// Heartbeat message enum
 enum heartbeat_messages {
     waiting_for_test_choice,
     waiting_for_first_choice,
@@ -158,18 +119,73 @@ enum heartbeat_messages {
     startup
 };
 
+
+
+// Global vars
+// Message array
+char data_msg[21];
+
+// Light active array
+bool lights[rows][cols] = {
+    {false, false, false, false, false, false, false, false},
+    {false, false, false, false, false, false, false, false},
+    {false, false, false, false, false, false, false, false},
+    {false, false, false, false, false, false, false, false},
+    {false, false, false, false, false, false, false, false},
+    {false, false, false, false, false, false, false, false}};
+
+// Selection stat vars
+bool first_choice_set = false;
+bool second_choice_set = false;
+bool first_choice_sent = false;
+bool second_choice_sent = false;
+bool test_choice_set = false;
+bool test_choice_sent = false;
+char first_choice = '0';
+char second_choice = '0';
+char test_choice = '0';
+
+bool update_leds = false;
+bool button_test = false;
+bool clear_key_list = false;
+
+bool keys_in = false;
+bool send_heartbeat = false;
+
 byte heartbeat_message = startup;
 
-void (*resetFunc)(void) = 0; //declare reset function @ address 0
 
+// Global object defs
+#ifdef LCD
+Adafruit_LiquidCrystal lcd;
+#endif
+
+// Log object
+Log out_log;
+
+// I2C Object
+I2C i2c;
+
+// Neopixel strip
+Adafruit_NeoPixel strip;
+
+// The LEDMatrixDriver class instance
+LEDMatrixDriver lmd(LEDMATRIX_SEGMENTS, LEDMATRIX_CS_PIN);
+
+// Keypad defs
+Keypad pad_1_keypad = Keypad(makeKeymap(pad_1_keys), pad_1_rowPins, pad_1_colPins, pad_1_rows, pad_1_cols);
+Keypad pad_2_keypad = Keypad(makeKeymap(pad_2_keys), pad_2_rowPins, pad_2_colPins, pad_2_rows, pad_2_cols);
+
+
+//declare reset function @ address 0
+void (*resetFunc)(void) = 0; 
 
 
 void light_up_button(char key, int round)
 {
     lmd.clear();
-    const char *msg0 = "light_up_button";
-    out_log.heartbeat_log(msg0);
-    out_log.heartbeat_log(key);
+    sprintf(data_msg, "light_up_button %c", key);
+    out_log.heartbeat_log(data_msg);
     // out_log.lcd_log("lgt btn:");
     // out_log.lcd_log(key, false);
     for (int col = 0; col < cols; col++)
@@ -193,8 +209,8 @@ void light_up_button(char key, int round)
 
 void clear_button_leds()
 {
-    const char *msg1 = "clear_button_leds";
-    out_log.heartbeat_log(msg1, true);
+    sprintf(data_msg, "clear_button_leds");
+    out_log.heartbeat_log(data_msg, true);
     // out_log.lcd_log("clear_button_leds", true);
     for (int col = 0; col < cols; col++)
     {
@@ -209,8 +225,8 @@ void clear_button_leds()
 
 void light_all_button_leds()
 {
-    const char *msg2 = "light_all_button_leds";
-    out_log.heartbeat_log(msg2, true);
+    sprintf(data_msg, "light_all_button_leds");
+    out_log.heartbeat_log(data_msg, true);
     // out_log.lcd_log("light_all_button_leds");
     lmd.clear();
     for (int col = 0; col < cols; col++)
@@ -225,53 +241,46 @@ void light_all_button_leds()
 
 void send_choices()
 {
-    const char *msg3 = "Choices Requested";
-    out_log.heartbeat_log(msg3);
+    int bytes_sent = 0;
+    // sprintf(data_msg, "Choices Requested");
+    // out_log.heartbeat_log(data_msg);
 
     if (send_heartbeat == true)
     {
-        const char *msg4 = "Send heartbeat";
-        out_log.heartbeat_log(msg4, true);
-        out_log.heartbeat_log(heartbeat_message, true);
-        const char *msg5 = "Snd hb:";
-        out_log.lcd_log(msg5);
-        out_log.lcd_log(heartbeat_message, false);
-        Wire.write(heartbeat_message);
+        // sprintf(data_msg, "Snd hb:%d", heartbeat_message);
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
+        bytes_sent = i2c.write_data(heartbeat_message);
+        // sprintf(data_msg, " b:%d", bytes_sent);
+        // out_log.lcd_log(data_msg, false);
         send_heartbeat = false;
         heartbeat_message = sent_heartbeat;
     }
-    else if (button_test == true && test_choice_set == true)
-    {
-        const char *msg6 = "Send test button: ";
-        out_log.heartbeat_log(msg6, true);
-        out_log.heartbeat_log(test_choice, true);
-        Wire.write(test_choice);
-        test_choice_set = false;
-        light_up_button(test_choice, 1);
-        heartbeat_message = sent_test_choice;
-    }
+    // else if (button_test == true && test_choice_set == true)
+    // {
+    //     // sprintf(data_msg, "Send test button:%c", test_choice);
+    //     // out_log.heartbeat_log(data_msg, true);
+    //     i2c.write_data(test_choice);
+    //     test_choice_set = false;
+    //     light_up_button(test_choice, 1);
+    //     heartbeat_message = sent_test_choice;
+    // }
     else if (first_choice_set == true && first_choice_sent == false)
     {
-        const char *msg7 = "Send first choice: ";
-        out_log.heartbeat_log(msg7);
-        out_log.heartbeat_log(first_choice, true);
-        const char *msg8 = "Snd fst key:";
-        out_log.lcd_log(msg8);
-        out_log.lcd_log(first_choice, false);
-        Wire.write(first_choice);
+        // sprintf(data_msg, "Snd fst key:%c", first_choice);
+        // out_log.heartbeat_log(data_msg);
+        // out_log.lcd_log(data_msg);
+        i2c.write_data(first_choice);
         first_choice_sent = true;
         light_up_button(first_choice, 1);
         heartbeat_message = sent_first_choice;
     }
     else if (second_choice_set == true && first_choice_sent == true && second_choice_sent == false)
     {
-        const char *msg9 = "Send second choice: ";
-        out_log.heartbeat_log(msg9);
-        out_log.heartbeat_log(second_choice, true);
-        const char *msg10 = "Snd sec key:";
-        out_log.lcd_log(msg10);
-        out_log.lcd_log(second_choice, false);
-        Wire.write(second_choice);
+        // sprintf(data_msg, "Snd sec key:%c", second_choice);
+        // out_log.heartbeat_log(data_msg);
+        // out_log.lcd_log(data_msg);
+        i2c.write_data(second_choice);
         second_choice_sent = true;
         light_up_button(second_choice, 2);
         heartbeat_message = sent_second_choce;
@@ -280,8 +289,8 @@ void send_choices()
 
 void clear_pixels()
 {
-    const char *msg11 = "clear_pixels";
-    out_log.heartbeat_log(msg11, true);
+    // sprintf(data_msg, "clear_pixels");
+    // out_log.heartbeat_log(data_msg, true);
     // out_log.lcd_log("clear_pixels");
     for (int i = 0; i < LED_COUNT; i++)
     {
@@ -292,8 +301,8 @@ void clear_pixels()
 
 void light_all_pixels()
 {
-    const char *msg12 = "light_all_pixels";
-    out_log.heartbeat_log(msg12, true);
+    sprintf(data_msg, "light_all_pixels");
+    out_log.heartbeat_log(data_msg, true);
     // out_log.lcd_log("light_all_pixels");
     for (int i = 0; i < LED_COUNT; i++)
     {
@@ -304,8 +313,8 @@ void light_all_pixels()
 
 void set_pixels_from_wire()
 {
-    const char *msg13 = "set_pixels_from_wire";
-    out_log.heartbeat_log(msg13, true);
+    // sprintf(data_msg, "set_pixels_from_wire");
+    // out_log.heartbeat_log(data_msg, true);
     // out_log.lcd_log("set_pixels_from_wire");
     int led_num, red, green, blue;
     led_num = Wire.read();
@@ -319,45 +328,38 @@ void set_pixels_from_wire()
 
 void read_command(int howMany)
 {
-    int command, set_count;
+    int byte1 = 0xffff, byte2 = 0xffff, command, set_count;
     // Read first 2 bytes off
-    Wire.read();
-    Wire.read();
+    byte1 = Wire.read();
+    byte2 = Wire.read();
     // Read command
     command = Wire.read();
-
-    const char *msg14 = "CMD: clr_strp";
-    const char *msg15 = "CMD: clr_set_led";
-    const char *msg16 = "CMD: set_led";
-    const char *msg17 = "CMD: set_mult_leds";
-    const char *msg18 = "CMD: rst_game";
-    const char *msg19 = "CMD: led_test";
-    const char *msg20 = "CMD: btn_test_on";
-    const char *msg21 = "CMD: btn_test_off";
-    const char *msg22 = "CMD: rst_teensy";
-    const char *msg23 = "CMD: hb";
 
     switch (command)
     {
     case clear_strip:
-        out_log.heartbeat_log(msg14, true);
-        out_log.lcd_log(msg14);
+        // sprintf(data_msg, "CMD: clr_strp");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         clear_pixels();
         break;
     case clear_then_set_led:
-        out_log.heartbeat_log(msg15, true);
-        out_log.lcd_log(msg15);
+        // sprintf(data_msg, "CMD: clr_set_led");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         clear_pixels();
         set_pixels_from_wire();
         break;
     case set_led:
-        out_log.heartbeat_log(msg16, true);
-        out_log.lcd_log(msg16);
+        // sprintf(data_msg, "CMD: set_led");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         set_pixels_from_wire();
         break;
     case set_multiple_leds:
-        out_log.heartbeat_log(msg17, true);
-        out_log.lcd_log(msg17);
+        // sprintf(data_msg, "CMD: set_mult_leds");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         set_count = Wire.read();
         for (int i = 0; i < set_count; i++)
         {
@@ -365,39 +367,48 @@ void read_command(int howMany)
         }
         break;
     case reset_game:
-        out_log.heartbeat_log(msg18, true);
-        out_log.lcd_log(msg18);
-        clear_pixels();
-        clear_button_leds();
+        sprintf(data_msg, "CMD: rst_game");
+        out_log.heartbeat_log(data_msg, true);
+        out_log.lcd_log(data_msg);
+        first_choice = '0';
+        second_choice = '0';
         first_choice_sent = false;
         second_choice_sent = false;
         first_choice_set = false;
         second_choice_set = false;
+        clear_key_list = true;
+        clear_pixels();
+        clear_button_leds();
         break;
     case led_test:
-        out_log.heartbeat_log(msg19, true);
-        out_log.lcd_log(msg19);
+        // sprintf(data_msg, "CMD: led_test");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         light_all_button_leds();
         light_all_pixels();
         break;
-    case button_test_on:
-        out_log.heartbeat_log(msg20, true);
-        out_log.lcd_log(msg20);
-        button_test = true;
-        break;
-    case button_test_off:
-        out_log.heartbeat_log(msg21, true);
-        out_log.lcd_log(msg21);
-        button_test = false;
-        break;
+    // case button_test_on:
+    //     // sprintf(data_msg, "CMD: btn_test_on");
+    //     // out_log.heartbeat_log(data_msg, true);
+    //     // out_log.lcd_log(data_msg);
+    //     button_test = true;
+    //     break;
+    // case button_test_off:
+    //     // sprintf(data_msg, "CMD: btn_test_off");
+    //     // out_log.heartbeat_log(data_msg, true);
+    //     // out_log.lcd_log(data_msg);
+    //     button_test = false;
+    //     break;
     case reset_teensy:
-        out_log.heartbeat_log(msg22, true);
-        out_log.lcd_log(msg22);
+        // sprintf(data_msg, "CMD: rst_teensy");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         resetFunc(); //call reset
         break;
     case heartbeat:
-        out_log.heartbeat_log(msg23, true);
-        out_log.lcd_log(msg23);
+        // sprintf(data_msg, "CMD: hb");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
         send_heartbeat = true;
         break;
     // case set_send_log:
@@ -411,21 +422,81 @@ void read_command(int howMany)
 }
 
 
+void key_listener_1(char key) {
+    sprintf(data_msg, "Pad 1 Pressed %c", key);
+    out_log.lcd_log(data_msg);
+    // if (button_test == true) {
+    //     test_choice = key;
+    //     test_choice_set = true;
+
+    //     if(test_choice_set == false) {
+    //         heartbeat_message = waiting_for_test_choice;
+    //     }
+    // } else 
+    if (first_choice_set == false) {
+        sprintf(data_msg, "first choice:%c", key);
+        out_log.heartbeat_log(data_msg, true);
+        out_log.lcd_log(data_msg);
+        first_choice = key;
+        first_choice_set = true;
+        out_log.heartbeat_log(key);
+    }
+}
+
+
+void key_listener_2(char key) {
+    sprintf(data_msg, "Pad 2 Pressed %c", key);
+    out_log.lcd_log(data_msg);
+    // if (button_test == true) {
+    //     test_choice = key;
+    //     test_choice_set = true;
+
+    //     if(test_choice_set == false) {
+    //         heartbeat_message = waiting_for_test_choice;
+    //     }
+    // } else 
+    if (first_choice_set == true && second_choice_set == false) {
+        sprintf(data_msg, "second choice:%c", key);
+        out_log.heartbeat_log(data_msg, true);
+        out_log.lcd_log(data_msg);
+        second_choice = key;
+        second_choice_set = true;
+        out_log.heartbeat_log(key);
+    }
+}
+
+
 void setup()
 {
     Serial.begin(9600);
-    const char *msg24 = "Teensy Init";
-    out_log.heartbeat_log(msg24, false);
-    out_log.lcd_log(msg24);
+
+    #ifdef LCD
+    lcd = Adafruit_LiquidCrystal(LCD_DATA_PIN, LCD_CLOCK_PIN, LCD_LATCH_PIN);
+    #endif
+
+    #ifdef LCD
+    out_log = Log(lcd);
+    #else
+    out_log = Log(NULL);
+    #endif
+
+    sprintf(data_msg, "Teensy Init");
+    out_log.heartbeat_log(data_msg, false);
+    out_log.lcd_log(data_msg);
+
+    strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
     strip.begin();
+    strip.clear();
     strip.show(); // Initialize all pixels to 'off'
-    Wire.begin(8);
-    Wire.onReceive(read_command);
-    Wire.onRequest(send_choices);
+
+    i2c = I2C(8, send_choices, read_command);
+
     lmd.setEnabled(true);
     lmd.setIntensity(0xF); // 0 = low, 10 = high
     clear_button_leds();
-    // clear_button_buffer();
+    
+    pad_1_keypad.addEventListener(key_listener_1);
+    pad_2_keypad.addEventListener(key_listener_2);
 }
 
 void loop()
@@ -436,162 +507,166 @@ void loop()
         update_leds = false;
     }
 
-    if (button_test == true)
-    {
-        // log_button_buffer();
-        const char *msg25 = "Get Pad 1 Keys";
-        out_log.heartbeat_log(msg25);
-        keys_in = pad_1_keypad.getKeys();
-        // interrupts();
-
-        if (keys_in && test_choice_set == false)
-        {
-            for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
-            {
-                if (pad_1_keypad.key[i].stateChanged) // Only find keys that have changed state.
-                {
-                    if (pad_1_keypad.key[i].kstate == PRESSED)
-                    {
-                        test_choice = pad_1_keypad.key[i].kchar;
-                        test_choice_set = true;
-                        // light_up_button(test_choice, 1);
-                        break;
-                    }
-                }
-            }
-        }
-
-        const char *msg26 = "Get Pad 2 Keys";
-        out_log.heartbeat_log(msg26);
-        keys_in = pad_2_keypad.getKeys();
-        // interrupts();
-
-        if (keys_in && test_choice_set == false)
-        {
-            for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
-            {
-                if (pad_2_keypad.key[i].stateChanged) // Only find keys that have changed state.
-                {
-                    if (pad_2_keypad.key[i].kstate == PRESSED)
-                    {
-                        test_choice = pad_1_keypad.key[i].kchar;
-                        test_choice_set = true;
-                        // light_up_button(test_choice, 1);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if(test_choice_set == false) {
-            heartbeat_message = waiting_for_test_choice;
-        }
+    if( clear_key_list == true) {
+        pad_1_keypad.clearList();
+        pad_2_keypad.clearList();
+        clear_key_list = false;
     }
-    else if (first_choice_set == false || second_choice_set == false)
+
+    pad_1_keypad.getKeys();
+    pad_2_keypad.getKeys();
+
+    // if (button_test == true)
+    // {
+    //     // log_button_buffer();
+    //     sprintf(data_msg, "Get Pad 1 Keys");
+    //     out_log.heartbeat_log(data_msg);
+    //     keys_in = pad_1_keypad.getKeys();
+    //     // interrupts();
+
+    //     if (keys_in && test_choice_set == false)
+    //     {
+    //         for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+    //         {
+    //             if (pad_1_keypad.key[i].stateChanged) // Only find keys that have changed state.
+    //             {
+    //                 if (pad_1_keypad.key[i].kstate == PRESSED)
+    //                 {
+    //                     test_choice = pad_1_keypad.key[i].kchar;
+    //                     test_choice_set = true;
+    //                     // light_up_button(test_choice, 1);
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     sprintf(data_msg, "Get Pad 2 Keys");
+    //     out_log.heartbeat_log(data_msg);
+    //     keys_in = pad_2_keypad.getKeys();
+    //     // interrupts();
+
+    //     if (keys_in && test_choice_set == false)
+    //     {
+    //         for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+    //         {
+    //             if (pad_2_keypad.key[i].stateChanged) // Only find keys that have changed state.
+    //             {
+    //                 if (pad_2_keypad.key[i].kstate == PRESSED)
+    //                 {
+    //                     test_choice = pad_1_keypad.key[i].kchar;
+    //                     test_choice_set = true;
+    //                     // light_up_button(test_choice, 1);
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     if(test_choice_set == false) {
+    //         heartbeat_message = waiting_for_test_choice;
+    //     }
+    // }
+    // else 
+    if (first_choice_set == false || second_choice_set == false)
     {
+        
         if (first_choice_set == false)
         {
-            const char *msg27 = "Waiting For First Choice";
-            out_log.heartbeat_log(msg27);
+            sprintf(data_msg, "Waiting For First Choice");
+            out_log.heartbeat_log(data_msg);
             heartbeat_message = waiting_for_first_choice;
         }
         else if (first_choice_set == true && second_choice_set == false)
         {
-            const char *msg28 = "first choice";
-            out_log.heartbeat_log(msg28);
+            sprintf(data_msg, "first choice");
+            out_log.heartbeat_log(data_msg);
             out_log.heartbeat_log(first_choice);
-            const char *msg29 = "Waiting For Second Choice";
-            out_log.heartbeat_log(msg29);
+            sprintf(data_msg, "Waiting For Second Choice");
+            out_log.heartbeat_log(data_msg);
             heartbeat_message = waiting_for_second_choice;
         }
         else if (first_choice_set == true && second_choice_set == true)
         {
-            const char *msg30 = "First Choice";
-            out_log.heartbeat_log(msg30);
+            sprintf(data_msg, "First Choice");
+            out_log.heartbeat_log(data_msg);
             out_log.heartbeat_log(first_choice);
-            const char *msg31 = "Second Choice";
-            out_log.heartbeat_log(msg31);
+            sprintf(data_msg, "Second Choice");
+            out_log.heartbeat_log(data_msg);
             out_log.heartbeat_log(second_choice);
         }
-
-        if (first_choice_set == false)
-        {
-            // noInterrupts();
-            keys_in = pad_1_keypad.getKeys();
-            // interrupts();
-
-            bool key_pressed = false;
-
-            if (keys_in)
-            {
-                // String key_list = String("Keys Pressed: ");
-                for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
-                {
-                    if (pad_1_keypad.key[i].stateChanged) // Only find keys that have changed state.
-                    {
-                        if (pad_1_keypad.key[i].kstate == PRESSED)
-                        {
-                            key_pressed = true;
-                            if (isLowerCase(pad_1_keypad.key[i].kchar) && first_choice_set == false)
-                            {
-                                const char *msg32 = "first choice";
-                                out_log.heartbeat_log(msg32, true);
-                                
-                                first_choice = pad_1_keypad.key[i].kchar;
-                                first_choice_set = true;
-                                // light_up_button(first_choice, 1);
-                                // send_key(first_choice);
-                                // out_log.lcd_log("frst key:");
-                                // out_log.lcd_log(first_choice, false);
-                            }
-                            out_log.heartbeat_log(pad_1_keypad.key[i].kchar);
-                        }
-                    }
-                }
-                if (key_pressed == true)
-                {
-                    // out_log.heartbeat_log(String(key_list), true);
-                    key_pressed = false;
-                }
-            }
-        } else if (first_choice_set == true && second_choice_set == false) {
-            // noInterrupts();
-            keys_in = pad_2_keypad.getKeys();
-            // interrupts();
-
-            bool key_pressed = false;
-
-            if (keys_in)
-            {
-                // String key_list = String("Keys Pressed: ");
-                for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
-                {
-                    if (pad_2_keypad.key[i].stateChanged) // Only find keys that have changed state.
-                    {
-                        if (pad_2_keypad.key[i].kstate == PRESSED)
-                        {
-                            key_pressed = true;
-                            if (isUpperCase(pad_2_keypad.key[i].kchar) && first_choice_set == true && second_choice_set == false)
-                            {
-                                const char *msg33 = "second choice";
-                                out_log.heartbeat_log(msg33, true);
-                                second_choice = pad_2_keypad.key[i].kchar;
-                                second_choice_set = true;
-                                // light_up_button(second_choice, 2);
-                                // send_key(second_choice);
-                                // out_log.lcd_log("sec key:");
-                                // out_log.lcd_log(second_choice, true);
-                            }
-                            out_log.heartbeat_log(pad_2_keypad.key[i].kchar);
-                        }
-                    }
-                }
-                if (key_pressed == true)
-                {
-                    // out_log.heartbeat_log(String(key_list), true);
-                    key_pressed = false;
-                }
-            }
-        }
     }
+
+        // if (first_choice_set == false)
+        // {
+        //     // noInterrupts();
+        //     keys_in = pad_1_keypad.getKeys();
+        //     // interrupts();
+
+        //     bool key_pressed = false;
+
+        //     if (keys_in)
+        //     {
+        //         // String key_list = String("Keys Pressed: ");
+        //         for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+        //         {
+        //             if (pad_1_keypad.key[i].stateChanged) // Only find keys that have changed state.
+        //             {
+        //                 if (pad_1_keypad.key[i].kstate == PRESSED)
+        //                 {
+        //                     key_pressed = true;
+        //                     if (isLowerCase(pad_1_keypad.key[i].kchar) && first_choice_set == false)
+        //                     {
+        //                         sprintf(data_msg, "first choice");
+        //                         out_log.heartbeat_log(data_msg, true);
+                                
+        //                         first_choice = pad_1_keypad.key[i].kchar;
+        //                         first_choice_set = true;
+        //                     }
+        //                     out_log.heartbeat_log(pad_1_keypad.key[i].kchar);
+        //                 }
+        //             }
+        //         }
+        //         if (key_pressed == true)
+        //         {
+        //             // out_log.heartbeat_log(String(key_list), true);
+        //             key_pressed = false;
+        //         }
+        //     }
+        // } else if (first_choice_set == true && second_choice_set == false) {
+        //     // noInterrupts();
+        //     keys_in = pad_2_keypad.getKeys();
+        //     // interrupts();
+
+        //     bool key_pressed = false;
+
+        //     if (keys_in)
+        //     {
+        //         // String key_list = String("Keys Pressed: ");
+        //         for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+        //         {
+        //             if (pad_2_keypad.key[i].stateChanged) // Only find keys that have changed state.
+        //             {
+        //                 if (pad_2_keypad.key[i].kstate == PRESSED)
+        //                 {
+        //                     key_pressed = true;
+        //                     if (isUpperCase(pad_2_keypad.key[i].kchar) && first_choice_set == true && second_choice_set == false)
+        //                     {
+        //                         sprintf(data_msg, "second choice");
+        //                         out_log.heartbeat_log(data_msg, true);
+        //                         second_choice = pad_2_keypad.key[i].kchar;
+        //                         second_choice_set = true;
+        //                     }
+        //                     out_log.heartbeat_log(pad_2_keypad.key[i].kchar);
+        //                 }
+        //             }
+        //         }
+        //         if (key_pressed == true)
+        //         {
+        //             // out_log.heartbeat_log(String(key_list), true);
+        //             key_pressed = false;
+        //         }
+        //     }
+        // }
+    // }
 }
