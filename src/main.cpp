@@ -33,7 +33,7 @@
 
 
 // Constants
-const int LED_COUNT = 58;
+const int LED_COUNT = 50;
 
 const uint8_t LCD_CLOCK_PIN = 21;
 const uint8_t LCD_DATA_PIN = 23;
