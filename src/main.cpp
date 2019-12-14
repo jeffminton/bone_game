@@ -35,6 +35,8 @@
 // Constants
 const int LED_COUNT = 54;
 
+const int NON_CORRECT_INDICATOR_LED_COUNT = 48;
+
 const uint8_t LCD_CLOCK_PIN = 21;
 const uint8_t LCD_DATA_PIN = 23;
 const uint8_t LCD_LATCH_PIN = 24;
@@ -81,6 +83,24 @@ char pad_2_keys[pad_2_rows][pad_2_cols] = {
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
 
+// Define color list for random color assignment
+const int COLOR_COUNT = 12;
+const int RGB_VALUE_COUNT = 3;
+int color_list[COLOR_COUNT][RGB_VALUE_COUNT] = {
+    {0, 255, 17}, {255, 17, 0}, 
+    {16, 0, 244}, {119, 255, 0}, 
+    {255, 0, 119}, {0, 116, 248}, 
+    {255, 230, 0}, {230, 0, 255}, 
+    {0, 251, 226}, {255, 115, 0},
+    {115, 0, 255}, {0, 251, 113}
+};
+
+// Define a structure to store the list of leds to randomly l;ight up
+// Declaration
+int* random_led_array = 0;
+int random_led_array_size = 0;
+
+
 // Define keypad 1 pins
 byte pad_1_rowPins[pad_1_rows] = {PAD_1_ROW_1, PAD_1_ROW_2, PAD_1_ROW_3};                  //connect to the row pinouts of the keypad
 byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
@@ -102,7 +122,8 @@ enum commands
     button_test_off,
     reset_teensy,
     heartbeat,
-    set_send_log
+    set_send_log,
+    set_random_leds
 };
 
 // Heartbeat message enum
@@ -179,6 +200,32 @@ Keypad pad_2_keypad = Keypad(makeKeymap(pad_2_keys), pad_2_rowPins, pad_2_colPin
 
 //declare reset function @ address 0
 void (*resetFunc)(void) = 0; 
+
+
+bool int_in_array(int value, int* array, int items_in_array) {
+    for (int i = 0; i < items_in_array; i++) {
+        if (value == array[i]) {
+            return true
+        }
+    }
+
+    return false
+}
+
+
+bool int_near_array_value(int value, int* array, int items_in_array, int close_threshold) {
+    int low_threshold, high_threshold;
+
+    for (int i = 0; i < items_in_array; i++) {
+        low_threshold = array[i] - close_threshold;
+        high_threshold = array[i] + close_threshold;
+        if (value < low_threshold || value > high_threshold) {
+            return true
+        }
+    }
+
+    return false
+}
 
 
 void light_up_button(char key, int round)
@@ -326,6 +373,46 @@ void set_pixels_from_wire()
     heartbeat_message = lighting_led;
 }
 
+
+void set_random_pixels()
+{
+    // sprintf(data_msg, "set_pixels_from_wire");
+    // out_log.heartbeat_log(data_msg, true);
+    // out_log.lcd_log("set_pixels_from_wire");
+    int led_count, random_pixel, random_color;
+    led_count = Wire.read();
+
+    if (random_led_array != 0) {
+        delete [] random_led_array;
+    }
+    
+    random_led_array = new int [led_count];
+
+    for (int i = 0; i < led_count; i++) {
+        random_pixel = random(NON_CORRECT_INDICATOR_LED_COUNT);
+        while (int_in_array(random_pixel, random_led_array, i) == true) {
+            random_pixel = random(NON_CORRECT_INDICATOR_LED_COUNT);
+        }
+
+        // Found an LED number not yet selected. 
+        random_led_array[i] = random_pixel;
+
+        // Choose a random color from the preset color choice list
+        random_color = random(COLOR_COUNT);
+
+        // Set pixel to have random color
+        strip.setPixelColor(random_pixel, strip.Color(color_list[random_color][0], color_list[random_color][1], color_list[random_color][2]));
+    }
+
+    update_leds = true;
+    heartbeat_message = lighting_led;
+    
+    if (random_led_array != 0) {
+        delete [] random_led_array;
+    }
+}
+
+
 void read_command(int howMany)
 {
     int byte1 = 0xffff, byte2 = 0xffff, command, set_count;
@@ -410,6 +497,12 @@ void read_command(int howMany)
         // out_log.heartbeat_log(data_msg, true);
         // out_log.lcd_log(data_msg);
         send_heartbeat = true;
+        break;
+    case set_random_leds:
+        // sprintf(data_msg, "CMD: clr_strp");
+        // out_log.heartbeat_log(data_msg, true);
+        // out_log.lcd_log(data_msg);
+        set_random_pixels();
         break;
     // case set_send_log:
     //     out_log.heartbeat_log("Command: set_send_log", true);
@@ -497,6 +590,8 @@ void setup()
     
     pad_1_keypad.addEventListener(key_listener_1);
     pad_2_keypad.addEventListener(key_listener_2);
+
+    randomSeed(analogRead(0));
 }
 
 void loop()
