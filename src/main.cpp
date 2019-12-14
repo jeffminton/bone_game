@@ -205,11 +205,11 @@ void (*resetFunc)(void) = 0;
 bool int_in_array(int value, int* array, int items_in_array) {
     for (int i = 0; i < items_in_array; i++) {
         if (value == array[i]) {
-            return true
+            return true;
         }
     }
 
-    return false
+    return false;
 }
 
 
@@ -220,11 +220,11 @@ bool int_near_array_value(int value, int* array, int items_in_array, int close_t
         low_threshold = array[i] - close_threshold;
         high_threshold = array[i] + close_threshold;
         if (value < low_threshold || value > high_threshold) {
-            return true
+            return true;
         }
     }
 
-    return false
+    return false;
 }
 
 
