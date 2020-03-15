@@ -1,2 +1,7 @@
 .pioenvs
 .piolibdeps
+.pio
+*.o
+*.a
+*.skip
+examples
