@@ -9,10 +9,12 @@
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
 #include <avr/power.h>
-#endif
+#endif  
 
 // #include <Wire.h>
 
+// Define a TEST_BUTTON_SETUP to declare a limited number of buttons to test
+#define TEST_BUTTON_SETUP 1
 
 #define LED_PIN 4
 
@@ -50,12 +52,21 @@ const int LEDMATRIX_HEIGHT = 6;
 const int LEDMATRIX_SEGMENTS = 1;
 
 // Define keypad constants
+#ifndef TEST_BUTTON_SETUP
 const int rows = 6; //6 rows
 const int cols = 8; //8 columns
 const byte pad_1_rows = 3; //3 rows
 const byte pad_1_cols = 8; //8 columns
 const byte pad_2_rows = 3; //3 rows
 const byte pad_2_cols = 8; //8 columns
+#else
+const int rows = 6; //6 rows
+const int cols = 8; //8 columns
+const byte pad_1_rows = 3; //3 rows
+const byte pad_1_cols = 2; //8 columns
+const byte pad_2_rows = 3; //3 rows
+const byte pad_2_cols = 2; //8 columns
+#endif
 
 // Define keypad keys
 char keys[rows][cols] = {
@@ -66,41 +77,35 @@ char keys[rows][cols] = {
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
 
+
+
 // Define keypad 1 keys
+#ifndef TEST_BUTTON_SETUP
 char pad_1_keys[pad_1_rows][pad_1_cols] = {
     {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
     {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
     {'q', 'r', 's', 't', 'u', 'v', 'w', 'x'}};
-
-// char pad_1_keys[pad_1_rows][pad_1_cols] = {
-//     {1, 2, 3, 4, 5, 6, 7, 8},
-//     {9, 10, 11, 12, 13, 14, 15, 16},
-//     {17, 18, 19, 20, 21, 22, 23, 24}};
+#else
+char pad_1_keys[pad_1_rows][pad_1_cols] = {
+    {'a', 'b'},
+    {'i', 'j'},
+    {'q', 'r'}};
+#endif
 
 // Define keypad 2 keys
+#ifndef TEST_BUTTON_SETUP
 char pad_2_keys[pad_2_rows][pad_2_cols] = {
     {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'},
     {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
     {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'}};
+#else
+char pad_2_keys[pad_2_rows][pad_2_cols] = {
+    {'A', 'B'},
+    {'I', 'J'},
+    {'Q', 'R'}};
+#endif
 
-// Define color list for random color assignment
-const int COLOR_COUNT = 12;
-const int RGB_VALUE_COUNT = 3;
-int color_list[COLOR_COUNT][RGB_VALUE_COUNT] = {
-    {0, 255, 17}, {255, 17, 0}, 
-    {16, 0, 244}, {119, 255, 0}, 
-    {255, 0, 119}, {0, 116, 248}, 
-    {255, 230, 0}, {230, 0, 255}, 
-    {0, 251, 226}, {255, 115, 0},
-    {115, 0, 255}, {0, 251, 113}
-};
-
-// Define a structure to store the list of leds to randomly l;ight up
-// Declaration
-int* random_led_array = 0;
-int random_led_array_size = 0;
-
-
+#ifndef TEST_BUTTON_SETUP
 // Define keypad 1 pins
 byte pad_1_rowPins[pad_1_rows] = {PAD_1_ROW_1, PAD_1_ROW_2, PAD_1_ROW_3};                  //connect to the row pinouts of the keypad
 byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
@@ -108,6 +113,16 @@ byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_
 // Define keypad 2 pins
 byte pad_2_rowPins[pad_2_rows] = {PAD_2_ROW_1, PAD_2_ROW_2, PAD_2_ROW_3};                  //connect to the row pinouts of the keypad
 byte pad_2_colPins[pad_2_cols] = {COL_1, COL_2, COL_3, COL_4, COL_5, COL_6, COL_7, COL_8}; //connect to the column pinouts of the keypad
+#else
+// Define keypad 1 pins
+byte pad_1_rowPins[pad_1_rows] = {PAD_1_ROW_1, PAD_1_ROW_2, PAD_1_ROW_3};                  //connect to the row pinouts of the keypad
+byte pad_1_colPins[pad_1_cols] = {COL_1, COL_2}; //connect to the column pinouts of the keypad
+
+// Define keypad 2 pins
+byte pad_2_rowPins[pad_2_rows] = {PAD_2_ROW_1, PAD_2_ROW_2, PAD_2_ROW_3};                  //connect to the row pinouts of the keypad
+byte pad_2_colPins[pad_2_cols] = {COL_1, COL_2}; //connect to the column pinouts of the keypad
+#endif
+
 
 // Command ENUM
 enum commands
@@ -288,7 +303,7 @@ void light_all_button_leds()
 
 void send_choices()
 {
-    int bytes_sent = 0;
+    // int bytes_sent = 0;
     // sprintf(data_msg, "Choices Requested");
     // out_log.heartbeat_log(data_msg);
 
@@ -297,7 +312,8 @@ void send_choices()
         // sprintf(data_msg, "Snd hb:%d", heartbeat_message);
         // out_log.heartbeat_log(data_msg, true);
         // out_log.lcd_log(data_msg);
-        bytes_sent = i2c.write_data(heartbeat_message);
+        // bytes_sent = i2c.write_data(heartbeat_message);
+        i2c.write_data(heartbeat_message);
         // sprintf(data_msg, " b:%d", bytes_sent);
         // out_log.lcd_log(data_msg, false);
         send_heartbeat = false;
@@ -415,10 +431,12 @@ void set_random_pixels()
 
 void read_command(int howMany)
 {
-    int byte1 = 0xffff, byte2 = 0xffff, command, set_count;
+    int command, set_count;
     // Read first 2 bytes off
-    byte1 = Wire.read();
-    byte2 = Wire.read();
+    // byte1 = Wire.read();
+    // byte2 = Wire.read();
+    Wire.read();
+    Wire.read();
     // Read command
     command = Wire.read();
 
@@ -517,7 +535,7 @@ void read_command(int howMany)
 
 void key_listener_1(char key) {
     sprintf(data_msg, "Pad 1 Pressed %c", key);
-    out_log.lcd_log(data_msg);
+    // out_log.lcd_log(data_msg);
     // if (button_test == true) {
     //     test_choice = key;
     //     test_choice_set = true;
@@ -539,7 +557,7 @@ void key_listener_1(char key) {
 
 void key_listener_2(char key) {
     sprintf(data_msg, "Pad 2 Pressed %c", key);
-    out_log.lcd_log(data_msg);
+    // out_log.lcd_log(data_msg);
     // if (button_test == true) {
     //     test_choice = key;
     //     test_choice_set = true;
