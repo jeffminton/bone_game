@@ -14,7 +14,12 @@
 // #include <Wire.h>
 
 // Define a TEST_BUTTON_SETUP to declare a limited number of buttons to test
-#define TEST_BUTTON_SETUP 1
+// #define TEST_BUTTON_SETUP 1
+
+// Define a setup where buttons are set automativally for testing without buttons plugged in
+// #define NO_BUTTON_TEST 1
+
+
 
 #define LED_PIN 4
 
@@ -50,6 +55,33 @@ const uint8_t LEDMATRIX_CS_PIN = 0;
 const int LEDMATRIX_WIDTH = 8;
 const int LEDMATRIX_HEIGHT = 6;
 const int LEDMATRIX_SEGMENTS = 1;
+
+const int thinking_led_rows = 12;
+const int thinking_led_cols = 4;
+int thinking_leds[thinking_led_rows][thinking_led_cols] = {
+    {0, 12, 24, 36},
+    {1, 13, 25, 37},
+    {2, 14, 26, 38},
+    {3, 15, 27, 39},
+    {4, 16, 28, 40},
+    {5, 17, 29, 41},
+    {6, 18, 30, 42},
+    {7, 19, 31, 43},
+    {8, 20, 32, 44},
+    {9, 21, 33, 45},
+    {10, 22, 34 ,46},
+    {11, 23, 35, 47}
+};
+
+unsigned long thinking_times[] = {
+     061,  338,  645,
+     795, 1075, 1371,
+    1522, 1810, 2095,
+    2246, 2615, 3051,
+    3347, 3541
+};
+
+unsigned long thinking_time_end = 3541;
 
 // Define keypad constants
 #ifndef TEST_BUTTON_SETUP
@@ -124,6 +156,9 @@ byte pad_2_colPins[pad_2_cols] = {COL_1, COL_2}; //connect to the column pinouts
 #endif
 
 
+
+
+
 // Command ENUM
 enum commands
 {
@@ -138,7 +173,9 @@ enum commands
     reset_teensy,
     heartbeat,
     set_send_log,
-    set_random_leds
+    set_random_leds,
+    start_thinking_leds,
+    end_thinking_leds
 };
 
 // Heartbeat message enum
@@ -184,6 +221,7 @@ char test_choice = '0';
 bool update_leds = false;
 bool button_test = false;
 bool clear_key_list = false;
+bool trigger_thinking_leds = false;
 
 bool keys_in = false;
 bool send_heartbeat = false;
@@ -390,42 +428,73 @@ void set_pixels_from_wire()
 }
 
 
-void set_random_pixels()
-{
-    // sprintf(data_msg, "set_pixels_from_wire");
-    // out_log.heartbeat_log(data_msg, true);
-    // out_log.lcd_log("set_pixels_from_wire");
-    int led_count, random_pixel, random_color;
-    led_count = Wire.read();
+void play_thinking_leds() {
+    // Get the current time to compare
+    // int log_line = 0;
+    sprintf(data_msg, "think");
+    out_log.lcd_log(data_msg);
+    unsigned long start_time = millis();
+    int row_num = thinking_led_rows - 1, col_1 = 0, col_2 = 2;
+    int prev_row_num = row_num, prev_col_1 = col_1, prev_col_2 = col_2;
+    bool down = false;
+    unsigned long current_time = millis();
+    int red = 0, green = 0, blue = 255;
+    int next_processing_message_time = 1000;
 
-    if (random_led_array != 0) {
-        delete [] random_led_array;
-    }
-    
-    random_led_array = new int [led_count];
-
-    for (int i = 0; i < led_count; i++) {
-        random_pixel = random(NON_CORRECT_INDICATOR_LED_COUNT);
-        while (int_in_array(random_pixel, random_led_array, i) == true) {
-            random_pixel = random(NON_CORRECT_INDICATOR_LED_COUNT);
+    // Run the LEDs up the left
+    sprintf(data_msg, "loop start");
+    out_log.lcd_log(data_msg);
+    while( ((start_time + thinking_time_end) > current_time) && trigger_thinking_leds == true ) {
+        strip.setPixelColor(thinking_leds[prev_row_num][prev_col_1], strip.Color(0, 0, 0));
+        strip.setPixelColor(thinking_leds[prev_row_num][prev_col_2], strip.Color(0, 0, 0));
+        
+        strip.setPixelColor(thinking_leds[row_num][col_1], strip.Color(red, green, blue));
+        strip.setPixelColor(thinking_leds[row_num][col_2], strip.Color(red, green, blue));
+        // // sprintf(data_msg, "t[%d, %d-%d]", row_num, col_1, col_2);
+        // // out_log.lcd_log(data_msg);
+        if((current_time - start_time) >= next_processing_message_time){
+            sprintf(data_msg, "in think");
+            out_log.lcd_log(data_msg);
+            next_processing_message_time = next_processing_message_time + 1000;
         }
 
-        // Found an LED number not yet selected. 
-        random_led_array[i] = random_pixel;
+        strip.show();
 
-        // Choose a random color from the preset color choice list
-        random_color = random(COLOR_COUNT);
+        prev_row_num = row_num;
+        prev_col_1 = col_1;
+        prev_col_2 = col_2;
+        if( down == true && (row_num + 1) < thinking_led_rows ) {
+            // Going down on the right and not at the last row yet
+            // Increment row
+            row_num++;
+        } else if ( down == true && (row_num + 1) >= thinking_led_rows) {
+            // Going down on the right and at the last row. 
+            // Switch to the other columns and go up
+            down = false;
+            // prev_col_1 = col_1;
+            // prev_col_2 = col_2;
+            col_1--;
+            col_2--;
+        } else if( down == false && row_num > 0) {
+            // Going up on the left and not at the first row
+            // Decrement row number
+            row_num --;
+        } else if( down == false && row_num == 0 ) {
+            // Going up on the right and at the first row
+            // Switch to the other coluns and go down
+            down = true;
+            // prev_col_1 = col_1;
+            // prev_col_2 = col_2;
+            col_1++;
+            col_2++;
+        }
 
-        // Set pixel to have random color
-        strip.setPixelColor(random_pixel, strip.Color(color_list[random_color][0], color_list[random_color][1], color_list[random_color][2]));
+        current_time = millis();
+
+        delay(20);
     }
-
-    update_leds = true;
-    heartbeat_message = lighting_led;
-    
-    if (random_led_array != 0) {
-        delete [] random_led_array;
-    }
+    sprintf(data_msg, "loop done");
+    out_log.lcd_log(data_msg);
 }
 
 
@@ -516,11 +585,17 @@ void read_command(int howMany)
         // out_log.lcd_log(data_msg);
         send_heartbeat = true;
         break;
-    case set_random_leds:
-        // sprintf(data_msg, "CMD: clr_strp");
+    case start_thinking_leds:
+        sprintf(data_msg, "CMD: think");
         // out_log.heartbeat_log(data_msg, true);
-        // out_log.lcd_log(data_msg);
-        set_random_pixels();
+        out_log.lcd_log(data_msg);
+        trigger_thinking_leds = true; //call reset
+        break;
+    case end_thinking_leds:
+        sprintf(data_msg, "CMD: nothink");
+        // out_log.heartbeat_log(data_msg, true);
+        out_log.lcd_log(data_msg);
+        trigger_thinking_leds = false; //call reset
         break;
     // case set_send_log:
     //     out_log.heartbeat_log("Command: set_send_log", true);
@@ -547,7 +622,7 @@ void key_listener_1(char key) {
     if (first_choice_set == false) {
         sprintf(data_msg, "first choice:%c", key);
         out_log.heartbeat_log(data_msg, true);
-        out_log.lcd_log(data_msg);
+        // out_log.lcd_log(data_msg);
         first_choice = key;
         first_choice_set = true;
         out_log.heartbeat_log(key);
@@ -569,7 +644,7 @@ void key_listener_2(char key) {
     if (first_choice_set == true && second_choice_set == false) {
         sprintf(data_msg, "second choice:%c", key);
         out_log.heartbeat_log(data_msg, true);
-        out_log.lcd_log(data_msg);
+        // out_log.lcd_log(data_msg);
         second_choice = key;
         second_choice_set = true;
         out_log.heartbeat_log(key);
@@ -626,8 +701,19 @@ void loop()
         clear_key_list = false;
     }
 
-    pad_1_keypad.getKeys();
-    pad_2_keypad.getKeys();
+
+    if (trigger_thinking_leds == true) {
+        play_thinking_leds();
+        trigger_thinking_leds = false;
+    }
+
+    #ifdef NO_BUTTON_TEST
+        key_listener_1('a');
+        key_listener_2('A');
+    #else
+        pad_1_keypad.getKeys();
+        pad_2_keypad.getKeys();
+    #endif
 
     // if (button_test == true)
     // {
@@ -688,6 +774,7 @@ void loop()
         {
             sprintf(data_msg, "Waiting For First Choice");
             out_log.heartbeat_log(data_msg);
+            // out_log.lcd_log(data_msg);
             heartbeat_message = waiting_for_first_choice;
         }
         else if (first_choice_set == true && second_choice_set == false)
@@ -695,6 +782,7 @@ void loop()
             sprintf(data_msg, "first choice");
             out_log.heartbeat_log(data_msg);
             out_log.heartbeat_log(first_choice);
+            // out_log.lcd_log(data_msg);
             sprintf(data_msg, "Waiting For Second Choice");
             out_log.heartbeat_log(data_msg);
             heartbeat_message = waiting_for_second_choice;
@@ -704,9 +792,11 @@ void loop()
             sprintf(data_msg, "First Choice");
             out_log.heartbeat_log(data_msg);
             out_log.heartbeat_log(first_choice);
+            // out_log.lcd_log(data_msg);
             sprintf(data_msg, "Second Choice");
             out_log.heartbeat_log(data_msg);
             out_log.heartbeat_log(second_choice);
+            // out_log.lcd_log(data_msg);
         }
     }
 
