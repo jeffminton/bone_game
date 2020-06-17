@@ -222,6 +222,7 @@ bool update_leds = false;
 bool button_test = false;
 bool clear_key_list = false;
 bool trigger_thinking_leds = false;
+int thinking_led_delay = 10;
 
 bool keys_in = false;
 bool send_heartbeat = false;
@@ -434,7 +435,7 @@ void play_thinking_leds() {
     sprintf(data_msg, "think");
     out_log.lcd_log(data_msg);
     unsigned long start_time = millis();
-    int row_num = thinking_led_rows - 1, col_1 = 0, col_2 = 2;
+    int row_num = 11, col_1 = 0, col_2 = 2;
     int prev_row_num = row_num, prev_col_1 = col_1, prev_col_2 = col_2;
     bool down = false;
     unsigned long current_time = millis();
@@ -491,7 +492,7 @@ void play_thinking_leds() {
 
         current_time = millis();
 
-        delay(20);
+        delay(thinking_led_delay);
     }
     sprintf(data_msg, "loop done");
     out_log.lcd_log(data_msg);
